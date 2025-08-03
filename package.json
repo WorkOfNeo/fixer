@@ -12,7 +12,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "playwright:install": "playwright install --with-deps chromium",
-    "postinstall": "npm run playwright:install",
+    "postinstall": "if [ \"$VERCEL\" != \"1\" ]; then npm run playwright:install; fi",
     "migrate:deploy": "if [ \"$SUPABASE_ACCESS_TOKEN\" ] && [ \"$SUPABASE_DB_PASSWORD\" ] && [ \"$SUPABASE_PROJECT_REF\" ]; then npx supabase db push --linked=false --project-ref=$SUPABASE_PROJECT_REF --db-password=$SUPABASE_DB_PASSWORD; else echo 'Skipping migration - missing Supabase credentials'; fi",
     "migrate:status": "npx supabase migration list",
     "db:reset": "npx supabase db reset"
