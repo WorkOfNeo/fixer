@@ -1,0 +1,23 @@
+{
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "outputDirectory": ".next",
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@next_public_supabase_anon_key"
+  },
+  "build": {
+    "env": {
+      "SUPABASE_ACCESS_TOKEN": "@supabase_access_token",
+      "SUPABASE_DB_PASSWORD": "@supabase_db_password", 
+      "SUPABASE_PROJECT_REF": "@supabase_project_ref"
+    }
+  }
+}
