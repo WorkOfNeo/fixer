@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Stock checker monorepo with Next.js frontend and Playwright scraper",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "npm run migrate:deploy && next build",
