@@ -71,3 +71,6 @@ data/*.csv
 supabase/.temp/
 supabase/.branches/
 .vercel
+
+# Browser automation server (separate project)
+browser-server/
