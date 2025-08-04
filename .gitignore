@@ -64,8 +64,10 @@ node_modules/
 
 # Customer data (sensitive)
 data/customers.json
-data/
+data/*.json
+data/*.csv
 
 # Supabase local development
 supabase/.temp/
 supabase/.branches/
+.vercel
