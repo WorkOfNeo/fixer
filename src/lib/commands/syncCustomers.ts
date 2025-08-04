@@ -26,6 +26,29 @@ export async function runCustomerSync(): Promise<EnhancedSyncResult> {
   console.log(`  SPY_PASS: ${process.env.SPY_PASS ? '***PROVIDED***' : '***MISSING***'}`)
   
   try {
+    // Check if running on Vercel (serverless environment)
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV
+    const isServerless = process.env.AWS_LAMBDA_FUNCTION_NAME || isVercel
+    
+    if (isServerless) {
+      console.log('🚫 Browser automation not available in serverless environment (Vercel/Lambda)')
+      console.log('💡 Use a local environment or dedicated server for customer sync functionality')
+      
+      return {
+        success: false,
+        customersFound: 0,
+        customersSaved: 0,
+        errors: [
+          'Browser automation is not supported in serverless environments (Vercel/Lambda)',
+          'Please run customer sync from a local environment or dedicated server'
+        ],
+        lastSync: new Date().toISOString(),
+        operation: 'sync_serverless_limitation',
+        duration: Date.now() - startTime,
+        credentialsProvided: true
+      }
+    }
+    
     // Check credentials
     const spyUser = process.env.SPY_USER
     const spyPass = process.env.SPY_PASS
@@ -365,6 +388,35 @@ export async function runEnhancedSpyCustomerSync(): Promise<EnhancedSyncResult> 
   const startTime = Date.now()
   
   try {
+    // Check if running on Vercel (serverless environment)
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV
+    const isServerless = process.env.AWS_LAMBDA_FUNCTION_NAME || isVercel
+    
+    if (isServerless) {
+      console.log('🚫 Browser automation not available in serverless environment (Vercel/Lambda)')
+      console.log('💡 Use a local environment or dedicated server for customer sync functionality')
+      
+      return {
+        success: false,
+        customersFound: 0,
+        customersSaved: 0,
+        errors: [
+          'Browser automation is not supported in serverless environments (Vercel/Lambda)',
+          'Please run customer sync from a local environment or dedicated server',
+          'Alternative: Use a headless browser service like Browserless or ScrapingBee'
+        ],
+        lastSync: new Date().toISOString(),
+        operation: 'enhanced_spy_sync_serverless_limitation',
+        duration: Date.now() - startTime,
+        credentialsProvided: true,
+        debugInfo: {
+          environment: isVercel ? 'vercel' : 'other_serverless',
+          limitation: 'browser_automation_not_supported',
+          suggestion: 'run_from_local_environment_or_dedicated_server'
+        }
+      }
+    }
+    
     // Check credentials first
     const spyUser = process.env.SPY_USER
     const spyPass = process.env.SPY_PASS
