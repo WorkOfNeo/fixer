@@ -80,9 +80,12 @@ export async function runCustomerSync(): Promise<EnhancedSyncResult> {
     
     console.log('✅ Credentials found in environment')
     
-    // Check storage before sync
+    // Check storage before sync - using fallback for non-tenant calls
     console.log('📊 Checking storage before sync...')
-    const storage = new CustomerStorage()
+    // Note: These command functions don't have tenant context
+    // They should be called through the API which provides tenant context
+    const { CustomerStorage } = await import('@/lib/data/customerStorage')
+    const storage = new CustomerStorage() // Fallback to JSON for direct command usage
     const customersBefore = await storage.loadCustomers().catch(() => [])
     console.log(`📊 Customers in storage before sync: ${customersBefore.length}`)
     
@@ -435,8 +438,9 @@ export async function runEnhancedSpyCustomerSync(): Promise<EnhancedSyncResult> 
       }
     }
     
-    // Check storage before sync
-    const storage = new CustomerStorage()
+    // Check storage before sync - using fallback for non-tenant calls  
+    const { CustomerStorage } = await import('@/lib/data/customerStorage')
+    const storage = new CustomerStorage() // Fallback to JSON for direct command usage
     const customersBefore = await storage.loadCustomers().catch(() => [])
     console.log(`📊 Customers before enhanced SPY sync: ${customersBefore.length}`)
     

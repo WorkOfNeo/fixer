@@ -1,3 +1,7 @@
+// Import types only to avoid client-side fs imports
+import type { CustomerStorage } from './customerStorage'
+import type { SupabaseCustomerStorage } from './supabaseCustomerStorage'
+
 /**
  * Factory for determining storage configuration
  * Simplified to avoid client/server build issues
@@ -7,8 +11,28 @@ export class CustomerStorageFactory {
    * Get the current storage type
    */
   static getStorageType(): 'json' | 'supabase' {
-    const storageType = process.env.CUSTOMER_STORAGE_TYPE || 'json'
+    const storageType = process.env.CUSTOMER_STORAGE_TYPE || 'supabase'
     return storageType.toLowerCase() === 'supabase' ? 'supabase' : 'json'
+  }
+
+  /**
+   * Create storage instance based on configuration and tenant context
+   * This function dynamically imports to avoid client-side fs issues
+   */
+  static async createStorage(tenantId?: string) {
+    const storageType = this.getStorageType()
+    
+    if (storageType === 'supabase') {
+      const { SupabaseCustomerStorage } = await import('./supabaseCustomerStorage')
+      const storage = new SupabaseCustomerStorage()
+      // Initialize will get tenant context from authenticated user
+      await storage.initialize()
+      return storage
+    } else {
+      // Fallback to JSON storage for local development
+      const { CustomerStorage } = await import('./customerStorage')
+      return new CustomerStorage()
+    }
   }
 
   /**

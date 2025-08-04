@@ -7,6 +7,8 @@ import {
   runEnhancedSpyCustomerSync,
   healthCheckCustomerSync 
 } from '@/lib/commands/syncCustomers'
+import { createServerSupabaseClient, getCurrentUser, getCurrentTenant } from '@/lib/supabase/server'
+import { CustomerStorageFactory } from '@/lib/data/customerStorageFactory'
 
 export async function GET(request: NextRequest) {
   console.log('📋 GET /api/sync-customers - Health check request')
@@ -47,11 +49,48 @@ export async function POST(request: NextRequest) {
     console.log(`🔄 [${requestId}] Action requested: ${action}`)
     console.log(`🔄 [${requestId}] Request body:`, body)
     
+    // Authentication check
+    const supabase = createServerSupabaseClient()
+    const user = await getCurrentUser(supabase)
+    
+    if (!user) {
+      console.log(`❌ [${requestId}] No authenticated user`)
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Authentication required',
+          error: 'No authenticated user found',
+          requestId 
+        },
+        { status: 401 }
+      )
+    }
+    
+    // Get tenant context
+    const tenant = await getCurrentTenant(supabase)
+    
+    if (!tenant) {
+      console.log(`❌ [${requestId}] No tenant found for user: ${user.email}`)
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Tenant setup required',
+          error: 'User is not associated with a tenant',
+          requestId 
+        },
+        { status: 403 }
+      )
+    }
+    
+    console.log(`🔄 [${requestId}] Authenticated user: ${user.email}`)
+    console.log(`🔄 [${requestId}] Tenant: ${tenant.name} (${tenant.id})`)
+    
     // Enhanced logging for environment check
     console.log(`🔄 [${requestId}] Environment check:`)
     console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'not set'}`)
     console.log(`   SPY_USER exists: ${!!process.env.SPY_USER}`)
     console.log(`   SPY_PASS exists: ${!!process.env.SPY_PASS}`)
+    console.log(`   Storage type: ${CustomerStorageFactory.getStorageType()}`)
     
     let syncResult
     
@@ -95,14 +134,53 @@ export async function POST(request: NextRequest) {
             throw new Error(`Browser server responded with ${response.status}: ${response.statusText}`)
           }
           
-          syncResult = await response.json()
-          console.log(`✅ [${requestId}] Browser automation server completed: ${syncResult.success}`)
+          const rawSyncResult = await response.json()
+          console.log(`✅ [${requestId}] Browser automation server completed: ${rawSyncResult.success}`)
           
-          // Add metadata about delegation
-          syncResult = {
-            ...syncResult,
-            operation: `external_${syncResult.operation}`,
-            delegatedTo: browserServerUrl
+          // If successful, save data to Supabase with tenant context
+          if (rawSyncResult.success && rawSyncResult.customers && rawSyncResult.customers.length > 0) {
+            try {
+              console.log(`💾 [${requestId}] Saving ${rawSyncResult.customers.length} customers with tenant context`)
+              
+              const storage = await CustomerStorageFactory.createStorage(tenant.id)
+              await storage.saveCustomers(rawSyncResult.customers)
+              
+              console.log(`✅ [${requestId}] Successfully saved customers to tenant: ${tenant.name}`)
+              
+              syncResult = {
+                ...rawSyncResult,
+                operation: `external_${rawSyncResult.operation}`,
+                delegatedTo: browserServerUrl,
+                tenantId: tenant.id,
+                tenantName: tenant.name
+              }
+            } catch (saveError: any) {
+              console.error(`❌ [${requestId}] Failed to save customers:`, saveError.message)
+              
+              syncResult = {
+                success: false,
+                customersFound: rawSyncResult.customersFound || 0,
+                customersSaved: 0,
+                errors: [
+                  ...rawSyncResult.errors || [],
+                  `Failed to save customers: ${saveError.message}`
+                ],
+                lastSync: new Date().toISOString(),
+                operation: 'external_save_error',
+                delegatedTo: browserServerUrl,
+                tenantId: tenant.id,
+                tenantName: tenant.name
+              }
+            }
+          } else {
+            // No customers to save, just pass through the result
+            syncResult = {
+              ...rawSyncResult,
+              operation: `external_${rawSyncResult.operation}`,
+              delegatedTo: browserServerUrl,
+              tenantId: tenant.id,
+              tenantName: tenant.name
+            }
           }
           
         } catch (error: any) {
@@ -124,38 +202,65 @@ export async function POST(request: NextRequest) {
         }
       }
     } else {
-      // Running locally - use the original sync functions
-      switch (action) {
-        case 'quick':
-          console.log(`🔄 [${requestId}] Running quick customer sync...`)
-          syncResult = await runQuickCustomerSync()
-          break
-          
-        case 'full':
-          console.log(`🔄 [${requestId}] Running full customer sync with pagination...`)
-          syncResult = await runFullCustomerSync()
-          break
-          
-        case 'preview':
-          console.log(`🔄 [${requestId}] Running preview customer sync (dry run)...`)
-          syncResult = await runPreviewCustomerSync()
-          break
-          
-        case 'enhanced':
-          console.log(`🔄 [${requestId}] Running enhanced SPY-specific customer sync...`)
-          syncResult = await runEnhancedSpyCustomerSync()
-          break
-          
-        default:
-          console.log(`❌ [${requestId}] Invalid action: ${action}`)
-          return NextResponse.json(
-            { 
-              success: false, 
-              message: `Invalid action: ${action}. Use 'quick', 'full', 'preview', or 'enhanced'`,
-              requestId 
-            },
-            { status: 400 }
-          )
+      // Running locally - use the original sync functions with tenant context
+      try {
+        const storage = await CustomerStorageFactory.createStorage(tenant.id)
+        
+        switch (action) {
+          case 'quick':
+            console.log(`🔄 [${requestId}] Running quick customer sync...`)
+            syncResult = await runQuickCustomerSync()
+            break
+            
+          case 'full':
+            console.log(`🔄 [${requestId}] Running full customer sync with pagination...`)
+            syncResult = await runFullCustomerSync()
+            break
+            
+          case 'preview':
+            console.log(`🔄 [${requestId}] Running preview customer sync (dry run)...`)
+            syncResult = await runPreviewCustomerSync()
+            break
+            
+          case 'enhanced':
+            console.log(`🔄 [${requestId}] Running enhanced SPY-specific customer sync...`)
+            syncResult = await runEnhancedSpyCustomerSync()
+            break
+            
+          default:
+            console.log(`❌ [${requestId}] Invalid action: ${action}`)
+            return NextResponse.json(
+              { 
+                success: false, 
+                message: `Invalid action: ${action}. Use 'quick', 'full', 'preview', or 'enhanced'`,
+                requestId 
+              },
+              { status: 400 }
+            )
+        }
+        
+        // Add tenant context to local sync results
+        syncResult = {
+          ...syncResult,
+          tenantId: tenant.id,
+          tenantName: tenant.name
+        }
+        
+      } catch (storageError: any) {
+        console.error(`❌ [${requestId}] Storage configuration error:`, storageError.message)
+        
+        syncResult = {
+          success: false,
+          customersFound: 0,
+          customersSaved: 0,
+          errors: [`Storage configuration error: ${storageError.message}`],
+          lastSync: new Date().toISOString(),
+          operation: 'local_storage_error',
+          duration: 0,
+          credentialsProvided: true,
+          tenantId: tenant.id,
+          tenantName: tenant.name
+        }
       }
     }
     

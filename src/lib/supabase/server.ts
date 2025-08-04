@@ -93,6 +93,14 @@ export function createMiddlewareSupabaseClient(request: NextRequest, response: N
 }
 
 /**
+ * Get the current authenticated user
+ */
+export async function getCurrentUser(supabaseClient: ReturnType<typeof createServerSupabaseClient>) {
+  const { data: { user } } = await supabaseClient.auth.getUser()
+  return user
+}
+
+/**
  * Get the current user's tenant information
  * This is crucial for multi-tenant data isolation
  */

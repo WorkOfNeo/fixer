@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { AuthForm } from './auth/AuthForm'
 import { TenantSetup } from './auth/TenantSetup'
 import { UserHeader } from './auth/UserHeader'
-import { CustomerStorageFactory } from '@/lib/data/customerStorageFactory'
+
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -38,13 +38,8 @@ function AppContent({ children }: AppLayoutProps) {
             <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <h4 className="text-sm font-medium text-yellow-800 mb-2">Development Mode</h4>
               <div className="text-xs text-yellow-700 space-y-1">
-                <p>Storage: {CustomerStorageFactory.getStorageType().toUpperCase()}</p>
-                <p>
-                  {CustomerStorageFactory.getStorageType() === 'json' 
-                    ? 'Using local JSON storage - no authentication required for API calls'
-                    : 'Using Supabase - full multi-tenant authentication'
-                  }
-                </p>
+                <p>Storage: SUPABASE</p>
+                <p>Using Supabase - full multi-tenant authentication</p>
               </div>
             </div>
           )}
@@ -89,10 +84,8 @@ function AppContent({ children }: AppLayoutProps) {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  // Only render AuthProvider if Supabase is configured
-  const isSupabaseMode = CustomerStorageFactory.getStorageType() === 'supabase'
-  
-  if (!isSupabaseMode) {
+  // Always use Supabase authentication in production
+  if (false) { // This condition is now always false - we always use Supabase
     // In JSON mode, skip authentication entirely
     return (
       <div className="min-h-screen bg-gray-50">
