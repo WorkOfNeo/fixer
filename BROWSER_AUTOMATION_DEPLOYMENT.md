@@ -21,8 +21,8 @@ Vercel serverless functions **cannot** run browsers due to:
 
 2. **Create New Repository** for browser server:
    ```bash
-   # Create separate repo for browser server
-   cd browser-server
+   # Go to the separate browser automation server directory
+   cd ../browser-automation-server
    git init
    git add .
    git commit -m "Browser automation server"
