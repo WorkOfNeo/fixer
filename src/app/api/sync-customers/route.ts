@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     
     if (syncResult.errors.length > 0) {
       console.log(`❌ [${requestId}] Sync errors:`)
-      syncResult.errors.forEach((error, index) => {
+      syncResult.errors.forEach((error: string, index: number) => {
         console.log(`   ${index + 1}. ${error}`)
       })
     }
